@@ -1,7 +1,7 @@
 import Foundation
 
 public enum Gesture: String, Codable, CaseIterable {
-    case swipeUp, swipeDown, tipTapLeft, tipTapRight, twoFingerClick, twoFingerDoubleTap, threeFingerClick, logoTap
+    case swipeUp, swipeDown, twoFingerClick, twoFingerDoubleTap, threeFingerClick, logoTap
 }
 
 public struct Shortcut: Codable, Equatable {
@@ -39,14 +39,11 @@ public struct Configuration: Codable {
     public var pinchEnabled: Bool? = true
     public var pinchThreshold: Double?
     public var pinchSensitivity: Double?
-    public var restingMinDuration: Double = 0.12
     public var swipeDistance: Double = 0.08
     public var logoRegion = Region()
     public var bindings: [String: Shortcut] = [
         Gesture.swipeUp.rawValue: Shortcut(keyCode: 126, modifiers: ["control"], action: .missionControl),
         Gesture.swipeDown.rawValue: Shortcut(keyCode: 126, modifiers: ["control"], action: .missionControl),
-        Gesture.tipTapLeft.rawValue: Shortcut(keyCode: 123, modifiers: ["option", "command"]),
-        Gesture.tipTapRight.rawValue: Shortcut(keyCode: 124, modifiers: ["option", "command"]),
         Gesture.twoFingerClick.rawValue: Shortcut(keyCode: 0, modifiers: ["command"], action: .commandClick),
         Gesture.twoFingerDoubleTap.rawValue: Shortcut(keyCode: 21, modifiers: ["shift", "command"]),
         Gesture.threeFingerClick.rawValue: Shortcut(keyCode: 13, modifiers: ["command"]),
@@ -57,10 +54,9 @@ public struct Configuration: Codable {
     public func shortcut(for gesture: Gesture) -> Shortcut? { bindings[gesture.rawValue] }
 
     public func validate() throws {
-        let thresholds = [tapMaxDuration, tapMaxMovement, restingMinDuration, swipeDistance] +
+        let thresholds = [tapMaxDuration, tapMaxMovement, swipeDistance] +
             [doubleTapMaxStagger].compactMap { $0 }
         guard thresholds.allSatisfy({ $0.isFinite && $0 > 0 && $0 <= 1 }),
-              restingMinDuration <= tapMaxDuration,
               [logoRegion.minX, logoRegion.maxX, logoRegion.minY, logoRegion.maxY]
                 .allSatisfy({ $0.isFinite && (0...1).contains($0) }),
               logoRegion.minX < logoRegion.maxX, logoRegion.minY < logoRegion.maxY else {

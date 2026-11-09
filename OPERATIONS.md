@@ -70,7 +70,7 @@ files are loaded as saved and are not merged with defaults.
 4. Add focused sequences to `Tests/GestureCoreTests`, then document how to perform
    the gesture and its config entry. Adding a name alone does not recognize it.
 5. Add the mapping to an existing user's config only within their requested scope.
-   Preserve removed TipTaps, logo bounds, and sensitivity settings.
+   Preserve disabled bindings, logo bounds, and sensitivity settings.
 
 For example, a requested three-finger **tap** needs a new gesture name and a
 release-time rule for three brief stationary touches; the existing
@@ -108,8 +108,7 @@ ABI only when hardware evidence demonstrates that it must change; update
   states `3` and `4` count as touching in `Runtime.receive`.
 - Touch coordinates are normalized: X left `0` → right `1`, Y tail/logo `0` →
   front `1`. Timing uses monotonic uptime. Pure engine tests supply explicit time.
-- `fired` prevents conflicting one-shot actions within a touch session. TipTap
-  intentionally allows repeated taps with its resting anchor. Pinch owns its
+- `fired` prevents conflicting one-shot actions within a touch session. Pinch owns its
   session until both fingers lift, even after ending/cancellation.
 - Clear pending double-tap state when another gesture takes the touches. A
   physical click must not also count as a surface tap.

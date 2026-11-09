@@ -21,27 +21,19 @@ final class GestureEngineTests: XCTestCase {
         }
     }
 
-    func testRestingFingerCanAnchorSuccessiveTipTapsInEitherDirection() {
+    func testRestingFingerAndSideTapsDoNotTriggerOperations() {
         for left in [true, false] {
             let engine = GestureEngine()
-            let anchor = contact(1, left ? 0.7 : 0.3, 0.6)
-            let tap = contact(2, left ? 0.3 : 0.7, 0.6)
-            XCTAssertNil(engine.update([anchor], at: 0))
-            XCTAssertNil(engine.update([tap, anchor], at: 0.2)) // Input array order does not identify fingers.
-            XCTAssertEqual(engine.update([anchor], at: 0.3), left ? .tipTapLeft : .tipTapRight)
-            XCTAssertNil(engine.update([anchor, tap], at: 0.5))
-            XCTAssertEqual(engine.update([anchor], at: 0.6), left ? .tipTapLeft : .tipTapRight)
+            let resting = contact(1, left ? 0.7 : 0.3, 0.6)
+            let tapped = contact(2, left ? 0.3 : 0.7, 0.6)
+            XCTAssertNil(engine.update([resting], at: 0))
+            for time in [0.3, 0.5] {
+                XCTAssertNil(engine.update([tapped, resting], at: time))
+                XCTAssertNil(engine.update([resting], at: time + 0.05))
+                XCTAssertNil(engine.pinchEvent)
+            }
+            XCTAssertNil(engine.update([], at: 0.6))
         }
-    }
-
-    func testMovingMouseBeforeGestureDoesNotPermanentlyInvalidateRestingFinger() {
-        let engine = GestureEngine()
-        let anchor = contact(1, 0.7, 0.6)
-        _ = engine.update([anchor], at: 0)
-        engine.pointerMoved() // Position the cursor while a finger rests on the mouse.
-        _ = engine.update([anchor], at: 0.3)
-        _ = engine.update([anchor, contact(2, 0.3, 0.6)], at: 0.5)
-        XCTAssertEqual(engine.update([anchor], at: 0.6), .tipTapLeft)
     }
 
     func testTwoFingerSwipeWorksAfterPointerMotionWhileFingersRemainDown() {
@@ -53,16 +45,6 @@ final class GestureEngineTests: XCTestCase {
                                           contact(2, 0.7, 0.5 + direction * 0.1)], at: 0.1),
                            direction > 0 ? .swipeUp : .swipeDown)
         }
-    }
-
-    func testSimultaneousTwoFingerTapAndMovingAnchorAreNotTipTaps() {
-        let engine = GestureEngine()
-        XCTAssertNil(engine.update([contact(1, 0.3, 0.6), contact(2, 0.7, 0.6)], at: 0))
-        XCTAssertNil(engine.update([contact(1, 0.3, 0.6)], at: 0.1))
-        XCTAssertNil(engine.update([], at: 0.2))
-        XCTAssertNil(engine.update([contact(1, 0.7, 0.6)], at: 1))
-        XCTAssertNil(engine.update([contact(1, 0.8, 0.6), contact(2, 0.3, 0.6)], at: 1.2))
-        XCTAssertNil(engine.update([contact(1, 0.8, 0.6)], at: 1.3))
     }
 
     func testThreeFingerClickSwallowsMatchingUpEvenAfterReloadOrPause() {
@@ -126,7 +108,7 @@ final class GestureEngineTests: XCTestCase {
         let original = Configuration()
         let decoded = try JSONDecoder().decode(Configuration.self, from: JSONEncoder().encode(original))
         try decoded.validate()
-        XCTAssertEqual(decoded.bindings.count, 8)
+        XCTAssertEqual(decoded.bindings.count, 6)
         var invalid = original
         invalid.logoRegion.minX = 0.9
         invalid.logoRegion.maxX = 0.1
@@ -159,14 +141,10 @@ final class GestureEngineTests: XCTestCase {
         XCTAssertNil(twoFingerTap(engine, at: 0.5, id: 20)) // A third tap is not another double-tap.
     }
 
-    func testDoubleTapAcceptsNaturalFingerStaggerWithTipTapsDisabled() {
-        var config = Configuration()
-        config.bindings.removeValue(forKey: "tipTapLeft")
-        config.bindings.removeValue(forKey: "tipTapRight")
-        // Neither direction should reserve the gesture after its binding is removed.
+    func testDoubleTapAcceptsNaturalFingerStagger() {
         for delay in [0.1, 0.15] {
             for leftFirst in [true, false] {
-                let engine = GestureEngine(configuration: config)
+                let engine = GestureEngine()
                 for (index, time) in [0.0, 0.3].enumerated() {
                     let first = contact(Int32(index * 2 + 1), leftFirst ? 0.3 : 0.7, 0.6)
                     let second = contact(Int32(index * 2 + 2), leftFirst ? 0.7 : 0.3, 0.6)
@@ -182,8 +160,6 @@ final class GestureEngineTests: XCTestCase {
     func testDoubleTapStaggerLimitIsConfigurableAndRejectsSeparateTouches() {
         for limit in [0.08, 0.16] {
             var config = Configuration()
-            config.bindings.removeValue(forKey: "tipTapLeft")
-            config.bindings.removeValue(forKey: "tipTapRight")
             config.doubleTapMaxStagger = limit
             let engine = GestureEngine(configuration: config)
             for time in [0.0, 0.3] {
@@ -218,13 +194,13 @@ final class GestureEngineTests: XCTestCase {
             _ = engine.update([contact(1, 0.3, 0.6), contact(2, 0.7, 0.6)], at: 0)
             if mode == 1 {
                 _ = engine.update([contact(1, 0.35, 0.6), contact(2, 0.75, 0.6)], at: 0.05)
-            } else if mode == 2 { engine.pointerMoved(at: 0.05) }
+            } else if mode == 2 { engine.pointerMoved() }
             XCTAssertNil(engine.update([], at: mode == 0 ? 0.3 : 0.1))
             XCTAssertNil(twoFingerTap(engine, at: 0.35))
         }
     }
 
-    func testPhysicalClickAndTipTapCannotCompletePendingDoubleTap() {
+    func testPhysicalClickCannotCompletePendingDoubleTap() {
         let engine = GestureEngine()
         XCTAssertNil(twoFingerTap(engine, at: 0))
         _ = engine.update([contact(1, 0.3, 0.6), contact(2, 0.7, 0.6)], at: 0.2)
@@ -232,11 +208,6 @@ final class GestureEngineTests: XCTestCase {
         XCTAssertEqual(engine.clickDisposition(button: 0, ending: true), .commandLeft)
         XCTAssertNil(engine.update([], at: 0.3))
         XCTAssertNil(twoFingerTap(engine, at: 0.4))
-        _ = engine.update([contact(1, 0.7, 0.6)], at: 0.6)
-        _ = engine.update([contact(1, 0.7, 0.6), contact(2, 0.3, 0.6)], at: 0.75)
-        XCTAssertEqual(engine.update([contact(1, 0.7, 0.6)], at: 0.8), .tipTapLeft)
-        XCTAssertNil(engine.update([], at: 0.82))
-        XCTAssertNil(twoFingerTap(engine, at: 0.9))
     }
 
     func testSwipesAndSingleFingerTapClearPendingDoubleTap() {
@@ -321,7 +292,7 @@ final class GestureEngineTests: XCTestCase {
                 let time = event["time"] as! Double
                 if event["kind"] as! String == "mouse" {
                     let distance = event["distance"] as! Double
-                    engine.pointerMoved(at: time, distance: distance)
+                    engine.pointerMoved(distance: distance)
                 } else {
                     let contacts = (event["contacts"] as! [[String: Any]]).filter {
                         let state = ($0["state"] as! NSNumber).intValue
@@ -342,11 +313,11 @@ final class GestureEngineTests: XCTestCase {
         let engine = GestureEngine()
         let contacts = [contact(1, 0.3, 0.6), contact(2, 0.7, 0.6)]
         _ = engine.update(contacts, at: 0)
-        engine.pointerMoved(at: 0.03, distance: 3)
+        engine.pointerMoved(distance: 3)
         XCTAssertNil(engine.update([], at: 0.1))
-        engine.pointerMoved(at: 0.15, distance: 4)
+        engine.pointerMoved(distance: 4)
         _ = engine.update(contacts, at: 0.2)
-        engine.pointerMoved(at: 0.24, distance: 2) // Nine pixels in total exceeds the eight-pixel budget.
+        engine.pointerMoved(distance: 2) // Nine pixels in total exceeds the eight-pixel budget.
         XCTAssertNil(engine.update([], at: 0.3))
     }
 
@@ -355,9 +326,9 @@ final class GestureEngineTests: XCTestCase {
             let engine = GestureEngine()
             let contacts = [contact(1, 0.3, 0.6), contact(2, 0.7, 0.6)]
             _ = engine.update(contacts, at: 0)
-            if during { engine.pointerMoved(at: 0.05, distance: 9) }
+            if during { engine.pointerMoved(distance: 9) }
             XCTAssertNil(engine.update([], at: 0.1))
-            if !during { engine.pointerMoved(at: 0.15, distance: 9) }
+            if !during { engine.pointerMoved(distance: 9) }
             XCTAssertNil(twoFingerTap(engine, at: 0.2))
         }
     }
@@ -366,7 +337,7 @@ final class GestureEngineTests: XCTestCase {
         for distance in [0.0, 1.0] {
             let engine = GestureEngine()
             _ = engine.update([contact(1, 0.5, 0.2)], at: 0)
-            engine.pointerMoved(at: 0.05, distance: distance)
+            engine.pointerMoved(distance: distance)
             XCTAssertEqual(engine.update([], at: 0.1), distance == 0 ? .logoTap : nil)
         }
     }
@@ -376,7 +347,7 @@ final class GestureEngineTests: XCTestCase {
         config.doubleTapMaxPointerMovement = 0
         let engine = GestureEngine(configuration: config)
         _ = engine.update([contact(1, 0.3, 0.6), contact(2, 0.7, 0.6)], at: 0)
-        engine.pointerMoved(at: 0.05, distance: 1)
+        engine.pointerMoved(distance: 1)
         XCTAssertNil(engine.update([], at: 0.1))
         XCTAssertNil(twoFingerTap(engine, at: 0.2))
     }

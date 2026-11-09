@@ -71,11 +71,8 @@ keeps its saved mappings, including any gestures you removed.
 | Pinch / spread | Slide two fingers together / apart without clicking | Continuous native zoom out / in |
 | Three-finger click | Physically press with three fingers resting | Close the front app's window/tab (Command-W) |
 | Logo tap | Briefly tap inside the calibrated `logoRegion` | Lock screen (Control-Command-Q) |
-| Left TipTap | Rest a right finger for at least 0.12 seconds, then tap to its left | Option-Command-Left |
-| Right TipTap | Rest a left finger for at least 0.12 seconds, then tap to its right | Option-Command-Right |
 
 **Tapping** touches the surface; **clicking** presses the physical button.
-TipTap bindings are optional: remove `tipTapLeft` and `tipTapRight` if unwanted.
 Keyboard actions target the active app, which may differ from the window under
 the pointer.
 
@@ -165,7 +162,8 @@ rebuilding, quit, remove the stale Accessibility entry, add the current app, and
 reopen. Building locally does not require a paid developer account.
 
 To update the app: **Quit → `./build.sh` → reopen**. Your config lives outside
-the repository and is preserved across builds.
+the repository and is preserved across builds. If an upgrade reports an invalid
+binding, remove that unsupported entry from `bindings`, save, and reload.
 
 ## Development and diagnostics
 

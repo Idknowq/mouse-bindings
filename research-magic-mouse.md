@@ -4,7 +4,7 @@ Research date: 2026-10-15. Research only; no listeners started, settings changed
 
 ## Conclusion
 
-All four requested mouse gesture types are feasible. BetterTouchTool's current **native Magic Mouse** gesture catalog lists the exact inputs, including the unusually specific Apple-logo region. That proves these are recognizable Magic Mouse gestures; it does not prove our implementation works on this particular mouse/macOS combination yet. [1][2]
+The three original mouse gesture types still in scope are feasible. BetterTouchTool's current **native Magic Mouse** gesture catalog lists the exact inputs, including the unusually specific Apple-logo region. That proves these are recognizable Magic Mouse gestures; it does not prove our implementation works on this particular mouse/macOS combination yet. [1][2]
 
 The simplest custom implementation is a native menu-bar app using a small C/Objective-C bridge to the private `MultitouchSupport.framework` for contact frames, plus public `CGEventTap` filtering and keyboard-event posting. A framework-symbol check is useful preliminary evidence, but real one-/two-/three-finger callbacks are the decisive first development test. No kernel extension or replacement mouse driver is needed in this design. [3][4][8]
 
@@ -13,7 +13,6 @@ The simplest custom implementation is a native menu-bar app using a small C/Obje
 | Request | Direct primary-source evidence | Recognition needed |
 |---|---|---|
 | Two-finger swipe up/down → Mission Control | BTT Magic Mouse IDs `7` / `8`, “2 Finger Swipe Up” / “2 Finger Swipe Down”. [1] | Exactly two active contacts; both move vertically in the same direction; distance threshold; one action per gesture. |
-| Tap left while a right finger rests; inverse → ⌥⌘← / ⌥⌘→ | IDs `16` / `17`, “TipTap Left/Right (1 Finger Fix)”. [1] | Track one established contact, a second contact appearing to its left/right, then that second contact lifting quickly without moving far. Do not confuse this with a physical two-finger click. |
 | Physical three-finger click → ⌘W | ID `21`, “3 Finger Click”; BTT explicitly describes three-finger clicks on Magic Mouse, followed by touch-release actions. [1][2] | Combine three active contacts with the physical mouse-down event. Swallow the corresponding original down/up pair. |
 | Tap immediately above the Apple logo → Lock Screen | ID `32`, “1 Finger Tap Above Apple”. [1] | Short one-finger tap within a calibrated surface region. User confirmed the lower-center area immediately above the printed Apple logo on a USB-C rechargeable Magic Mouse. |
 
@@ -21,7 +20,7 @@ BTT's catalog supports Magic Mouse 1, 2 and 3. The logo is not an independent se
 
 ## Input APIs and necessary filtering
 
-- The documented `CGEventField` catalog contains mouse/keyboard/scroll event fields, not a raw array of Magic Mouse contact identities and positions. Ordinary event taps alone do not supply the input needed for TipTap and the logo region. [5]
+- The documented `CGEventField` catalog contains mouse/keyboard/scroll event fields, not a raw array of Magic Mouse contact identities and positions. Ordinary event taps alone do not supply the input needed for the logo region. [5]
 - `NSTouch` documents touches latching to a view under the cursor; `NSEvent.touches(matching:in:)` is valid for gesture events. Passing `nil` selects touches regardless of target view **within that event**, not an independently documented system-wide raw mouse sensor feed. It should not be assumed to replace the device callback. [6]
 - Reverse-engineered `MTTouch` structures expose timestamp, path identifier, state, normalized position/velocity, contact ellipse and related fields. Frame callbacks give the device and the contact count; device enumeration allows selecting the Magic Mouse rather than the built-in trackpad. [3][4]
 - Count actual touching states, not every reported object: OhMyMagicMouse uses states `3` (make touch) and `4` (touching), retaining hover/leaving states only in diagnostics. Track IDs across frames rather than assuming array order or fixed finger names. [8]
@@ -32,7 +31,7 @@ BTT's catalog supports Magic Mouse 1, 2 and 3. The logo is not an independent se
 
 ## Existing implementations worth using as references
 
-1. **OhMyMagicMouse**: closest small native reference. Its source has a private-framework C bridge, explicit Magic Mouse device selection, touch coordinates, physical-click rewriting and two-finger vertical Mission Control recognition. However, “newest-finger button selection” is a **physical button rule**, not the requested TipTap → keyboard shortcut. Its current event-tap mask has no scroll-wheel events, so its two-finger action does not suppress native scroll. It also permanently refreshes live diagnostics at 60 Hz; copy the event-driven ideas rather than that refresh policy for a minimal background tool. [8]
+1. **OhMyMagicMouse**: closest small native reference. Its source has a private-framework C bridge, explicit Magic Mouse device selection, touch coordinates, physical-click rewriting and two-finger vertical Mission Control recognition. Its “newest-finger button selection” is a physical button rule. Its current event-tap mask has no scroll-wheel events, so its two-finger action does not suppress native scroll. It also permanently refreshes live diagnostics at 60 Hz; copy the event-driven ideas rather than that refresh policy for a minimal background tool. [8]
 2. **Jitouch Modern**: current community fork, native menu-bar app, Apple-silicon/macOS-26-tested according to its maintainer. It has a broader existing gesture/settings engine and explicit pointer/scroll filtering. Useful if reuse is preferred over developing a tiny purpose-built tool, but its scope and Objective-C code are larger. GPL-3.0; personal modification is possible. Claimed support still needs a trial on this mouse. [10]
 3. **MiddleClick / Hammerspoon undocumented touchdevice**: clear small examples of raw contact frames and three-finger physical click conversion. MiddleClick's current README advertises Magic Mouse, but its 2026 successor announcement also describes past Magic Mouse support/reliability problems; source examples are stronger evidence than treating it as a guaranteed ready-made solution. The Hammerspoon module explicitly warns that the private API can break after Apple changes it. [3][4][7][11]
 4. **OpenMultitouchSupport**: convenient Swift-facing private-framework wrapper, but its own README says it observes the **default trackpad device**. Do not adopt it unchanged for a Magic Mouse application on a MacBook. It requires disabling App Sandbox. [12]
@@ -42,7 +41,7 @@ BTT's catalog supports Magic Mouse 1, 2 and 3. The logo is not an independent se
 
 Using the established `MultitouchSupport` callback is the easiest evidenced route for all inputs, but it is private and has no Apple compatibility contract. Keep its bridge isolated and disable it cleanly if symbols are unavailable. A private-API, unsandboxed app installed only for this user avoids App Store concerns; the user still grants the normal Accessibility/Input Monitoring permissions required by macOS. No evidence supports promising permanent compatibility across OS upgrades. [4][8][10][12]
 
-Do not claim private API is the only conceivable route: the MiddleClick maintainer says its proprietary successor WheelClick uses public APIs and supports Magic Mouse, but publishes no relevant implementation there. Raw IOKit/HID report parsing through public APIs may also be possible while still depending on undocumented hardware reports. Neither gives us a simpler, verified open-source implementation for all four gestures from the sources inspected. [11]
+Do not claim private API is the only conceivable route: the MiddleClick maintainer says its proprietary successor WheelClick uses public APIs and supports Magic Mouse, but publishes no relevant implementation there. Raw IOKit/HID report parsing through public APIs may also be possible while still depending on undocumented hardware reports. Neither gives us a simpler, verified open-source implementation for these gestures from the sources inspected. [11]
 
 Engineering estimate, not a measured commitment: allow a few hours to one day for a read-only touch inspector and real-device feasibility gate; roughly 2–4 focused days for these recognizers, event filtering and basic shortcut actions; several additional days of daily-use tuning for accidental taps, click pairing, scroll leakage, reconnect/wake and permissions. A small native app can be lightweight, but recognizer reliability is the work; avoid a full visual settings editor until the gestures behave correctly.
 
@@ -56,16 +55,14 @@ Separate only three concerns: device contact input, gesture recognition, and eve
 |---|---|
 | Two-finger swipe up | Control-Up Arrow |
 | Two-finger swipe down | Control-Up Arrow |
-| TipTap left, right finger resting | Option-Command-Left Arrow |
-| TipTap right, left finger resting | Option-Command-Right Arrow |
 | Three-finger physical click | Command-W |
 | Tap in calibrated above-logo region | Control-Command-Q |
 
-Apple calls the overview **Mission Control**. Control-Up Arrow enters or leaves it; Control-Down Arrow instead shows the front application's windows. Mapping both vertical swipe directions to Control-Up follows the literal request and toggles the overview in either direction; directional “up opens, down closes” would be a separate behavior to choose. Command-W targets the front window/tab according to the active application, and the two Option-Command-arrow shortcuts likewise retain each application's keyboard behavior. The lock shortcut is Control-Command-Q. All outputs can use public Quartz keyboard-event creation/posting. [15][16]
+Apple calls the overview **Mission Control**. Control-Up Arrow enters or leaves it; Control-Down Arrow instead shows the front application's windows. Mapping both vertical swipe directions to Control-Up follows the literal request and toggles the overview in either direction; directional “up opens, down closes” would be a separate behavior to choose. Command-W targets the front window/tab according to the active application. The lock shortcut is Control-Command-Q. All outputs can use public Quartz keyboard-event creation/posting. [15][16]
 
 Later **ordinary keyboard shortcut remapping** can share the same event filter/output layer, including Magic Keyboard key events. No keyboard customization was specified for the first version. Identifying only one physical keyboard is a separate IOKit/device-input requirement; Touch ID authentication is outside ordinary key remapping. Do not add a keyboard driver or broad remapping engine to implement the mouse requirements.
 
-Proposed development gate: build a contact inspector first, manually verify one/two/three contacts, both TipTaps, and the above-logo coordinates on the actual USB-C mouse. Then implement the six bindings and check that normal clicking, dragging and one-finger scrolling remain usable; the recognized close/swipe gestures produce no extra click/scroll; long rests do not lock/close anything; and input returns after mouse reconnect and Mac wake. Benchmark the finished release build at idle and during gestures before making performance claims.
+Proposed development gate: build a contact inspector first, manually verify one/two/three contacts and the above-logo coordinates on the actual USB-C mouse. Then implement the remaining original bindings and check that normal clicking, dragging and one-finger scrolling remain usable; the recognized close/swipe gestures produce no extra click/scroll; long rests do not lock/close anything; and input returns after mouse reconnect and Mac wake. Benchmark the finished release build at idle and during gestures before making performance claims.
 
 ## Local evidence
 

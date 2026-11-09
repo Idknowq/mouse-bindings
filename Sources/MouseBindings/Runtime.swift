@@ -186,13 +186,13 @@ final class Runtime {
             disposition = engine.clickDisposition(button: button, ending: true)
         case .leftMouseDragged, .rightMouseDragged:
             disposition = engine.clickDisposition(button: button)
-            if enabled { engine.pointerMoved(at: Self.now, distance: pointerDistance) }
+            if enabled { engine.pointerMoved(distance: pointerDistance) }
         case .leftMouseDown where enabled || inspecting, .rightMouseDown where enabled || inspecting:
             gesture = engine.mouseDown(button: button, at: Self.now, suppressClick: enabled)
             disposition = engine.clickDisposition(button: button)
             if let pinch = engine.pinchEvent { enqueuePinch(pinch, generation: generation) }
         case .mouseMoved where enabled || inspecting:
-            engine.pointerMoved(at: Self.now, distance: pointerDistance)
+            engine.pointerMoved(distance: pointerDistance)
         case .scrollWheel where enabled:
             suppress = engine.suppressScroll(at: Self.now,
                 momentum: event.getIntegerValueField(.scrollWheelEventMomentumPhase),

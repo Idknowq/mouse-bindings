@@ -3,7 +3,7 @@
 Build a small native Swift menu-bar app for this Mac and USB-C Magic Mouse.
 
 1. Read finger IDs and positions through an isolated MultitouchSupport bridge; provide a read-only touch inspector.
-2. Recognize two-finger vertical swipes, left/right TipTap, three-finger physical click, and a tap above the Apple logo.
+2. Recognize two-finger vertical swipes, three-finger physical click, and a tap above the Apple logo.
 3. Send the requested shortcuts; suppress the original three-finger click and two-finger scroll. Both swipe directions toggle native Mission Control.
 4. Add Pause, permissions, configuration reload, and Quit. Store bindings and calibration thresholds in JSON.
 5. Build a local `.app`, test recognition/filtering with recorded-style input sequences, then calibrate on the actual mouse.
@@ -21,7 +21,7 @@ Keep processing callback-driven. No network service, keyboard driver, or broad s
 Use the existing menu-bar app and input pipeline. No zoom animation timer,
 keyboard zoom fallback, or new dependency is needed for normal operation.
 
-Implemented and signed on 2026-11-06. All 36 recognizer/filter tests pass,
+Implemented and signed on 2026-11-06. The recognizer/filter tests pass,
 including recorded double-taps with pinch enabled. macOS converts the generated
 packet into an `NSEvent` magnification with the expected phase and amount.
 Visible Chrome zoom and physical-mouse calibration still need confirmation;

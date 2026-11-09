@@ -16,19 +16,11 @@ public final class GestureEngine {
     private let doubleTapInterval: Double
     private struct Track {
         var start: Contact
-        var latest: Contact
         var began: Double
         var movement: Double = 0
         var invalidTap = false
-        var lastPointerMotion = -Double.infinity
-    }
-    private struct TipTap {
-        var anchor: Int32
-        var tapped: Int32
-        var gesture: Gesture
     }
     private var tracks: [Int32: Track] = [:]
-    private var tipTap: TipTap?
     private var swipeOrigins: [Int32: Contact] = [:]
     private var peakCount = 0
     private var fired = false
@@ -55,7 +47,7 @@ public final class GestureEngine {
 
     public func reset() {
         pinchEvent = pinch.reset()
-        tracks.removeAll(); tipTap = nil; swipeOrigins.removeAll()
+        tracks.removeAll(); swipeOrigins.removeAll()
         peakCount = 0; fired = false; lastFrameTime = -Double.infinity
         capturedScroll = false
         releasedTapCount = 0; sessionTapValid = true; pendingTwoFingerTap = nil
@@ -76,29 +68,16 @@ public final class GestureEngine {
         peakCount = max(peakCount, contacts.count)
         for contact in contacts {
             if var track = tracks[contact.id] {
-                track.latest = contact
                 track.movement = max(track.movement, hypot(contact.x - track.start.x, contact.y - track.start.y))
                 tracks[contact.id] = track
             } else {
-                tracks[contact.id] = Track(start: contact, latest: contact, began: time)
+                tracks[contact.id] = Track(start: contact, began: time)
             }
         }
 
         pinchEvent = pinch.update(contacts, configuration: configuration, canBegin: !fired)
         if pinch.ownsTouches || pinchEvent != nil {
-            fired = true; sessionTapValid = false; pendingTwoFingerTap = nil; tipTap = nil
-        }
-
-        if previous.count == 1, contacts.count == 2, let anchor = previous.values.first,
-           ids.contains(anchor.start.id), time - anchor.began >= configuration.restingMinDuration,
-           anchor.movement <= configuration.tapMaxMovement,
-           time - anchor.lastPointerMotion >= configuration.restingMinDuration,
-           let tapped = contacts.first(where: { $0.id != anchor.start.id }),
-           abs(tapped.x - anchor.latest.x) > 0.08,
-           configuration.shortcut(for: tapped.x < anchor.latest.x ? .tipTapLeft : .tipTapRight) != nil {
-            tipTap = TipTap(anchor: anchor.start.id, tapped: tapped.id,
-                            gesture: tapped.x < anchor.latest.x ? .tipTapLeft : .tipTapRight)
-            sessionTapValid = false
+            fired = true; sessionTapValid = false; pendingTwoFingerTap = nil
         }
 
         if contacts.count == 2, let first = tracks[contacts[0].id], let second = tracks[contacts[1].id] {
@@ -112,13 +91,6 @@ public final class GestureEngine {
         }
 
         var result: Gesture?
-        if !fired, peakCount == 2, let chord = tipTap,
-           !ids.contains(chord.tapped), ids.contains(chord.anchor),
-           let tap = tracks[chord.tapped], let anchor = tracks[chord.anchor],
-           isTap(tap, at: time),
-           anchor.movement <= configuration.tapMaxMovement {
-            result = chord.gesture
-        }
         if !fired, contacts.isEmpty, peakCount == 1, let tap = previous.values.first,
            isTap(tap, at: time), configuration.logoRegion.contains(tap.start) {
             result = .logoTap
@@ -154,13 +126,9 @@ public final class GestureEngine {
         if let gesture = result, configuration.shortcut(for: gesture) != nil {
             fired = true
             pendingTwoFingerTap = nil
-            if gesture == .tipTapLeft || gesture == .tipTapRight {
-                tipTap = nil
-                fired = false // The resting finger can anchor successive TipTaps.
-            }
         } else { result = nil }
         if contacts.isEmpty {
-            peakCount = 0; fired = false; tipTap = nil
+            peakCount = 0; fired = false
             releasedTapCount = 0; sessionTapValid = true
             sessionPointerMovement = 0
         }
@@ -176,7 +144,7 @@ public final class GestureEngine {
         track.movement <= configuration.tapMaxMovement
     }
 
-    public func pointerMoved(at time: Double? = nil, distance: Double? = nil) {
+    public func pointerMoved(distance: Double? = nil) {
         // Unmeasured motion (including a physical click) retains strict cancellation.
         let movement = distance ?? .infinity
         guard movement > 0 else { return }
@@ -189,7 +157,6 @@ public final class GestureEngine {
         }
         for id in Array(tracks.keys) {
             tracks[id]?.invalidTap = true
-            tracks[id]?.lastPointerMotion = time ?? lastFrameTime
         }
     }
 
